@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 
-import {shuffleArray} from './utils';
+import {shuffleArray} from '../utils';
 
 import styles from '../styles/Home.module.css';
 
