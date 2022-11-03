@@ -11,3 +11,9 @@ export const shuffleArray = array => {
 
   return array;
 };
+
+export const sortStats = stats => {
+  const sortedStats = Object.entries(stats).sort(([, a], [, b]) => b - a);
+
+  return sortedStats.map(([k, v]) => ({word: k, score: v}));
+};

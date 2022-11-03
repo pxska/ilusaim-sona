@@ -1,10 +1,15 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 
-import {shuffleArray} from '../utils';
-
-import styles from '../styles/Home.module.css';
+import {shuffleArray, sortStats} from '../utils';
 
 const lemmasBaseUrl = 'https://elo.eki.ee/etLex/api/v1.0/projects/etLex/lemmas?pos=S';
+
+const ScoreRow = ({word, score}) => (
+  <tr>
+    <td className="border px-4 py-2">{word}</td>
+    <td className="border px-4 py-2">{score}</td>
+  </tr>
+);
 
 const Home = () => {
   const [firstWord, setFirstWord] = useState(null);
@@ -35,12 +40,12 @@ const Home = () => {
       });
   };
 
-  const generateTwoRandomNumbers = useCallback(() => {
+  const generateTwoRandomNumbers = () => {
     const firstNumber = Math.floor(Math.random() * wordCount);
     const secondNumber = Math.floor(Math.random() * wordCount);
 
     return {firstNumber, secondNumber};
-  }, [wordCount]);
+  };
 
   const refreshWords = ({firstNumber, secondNumber}) => {
     const urls = [
@@ -48,14 +53,14 @@ const Home = () => {
       `${lemmasBaseUrl}&offset=${secondNumber}&limit=1`
     ];
 
-    Promise.all(urls.map((url) => fetch(url).then((response) => response.json())))
-      .then((data) => {
-        setFirstWord(data[0].items[0].lemma);
-        setSecondWord(data[1].items[0].lemma);
+    Promise.all(urls.map(url => fetch(url).then(res => res.json())))
+      .then(data => {
+        setFirstWord(data[0]?.items[0]?.lemma);
+        setSecondWord(data[1]?.items[0]?.lemma);
 
         setIsLoading(false);
       })
-      .catch((err) => {
+      .catch(err => {
         console.error(`Error: ${err}`);
       });
   };
@@ -71,33 +76,33 @@ const Home = () => {
     playTimes.current += 1;
 
     if (playTimes.current <= 10) {
-      refreshWords(generateTwoRandomNumbers());
-    } else {
-      if (gameCombinations.length >= 1) {
-        const currIdx = idxTracker.current;
+      const randomNumbers = generateTwoRandomNumbers();
 
-        if (currIdx === gameCombinations.length - 1) {
-          setGameEnded(true);
-        }
+      refreshWords(randomNumbers);
+    } else if (gameCombinations.length >= 1) {
+      const currIdx = idxTracker.current;
 
-        setFirstWord(gameCombinations[currIdx][0]);
-        setSecondWord(gameCombinations[currIdx][1]);
-
-        idxTracker.current += 1;
-      } else {
-        const statsMap = Object.keys(stats);
-
-        const result = statsMap.flatMap(
-          (v, i) => statsMap.slice(i + 1).map((w) => [v, w])
-        );
-
-        setGameCombinations(shuffleArray(result));
-
-        setFirstWord(result[idxTracker.current][0]);
-        setSecondWord(result[idxTracker.current][1]);
-
-        idxTracker.current += 1;
+      if (currIdx === gameCombinations.length - 1) {
+        setGameEnded(true);
       }
+
+      setFirstWord(gameCombinations[currIdx][0]);
+      setSecondWord(gameCombinations[currIdx][1]);
+
+      idxTracker.current += 1;
+    } else {
+      const statsMap = Object.keys(stats);
+
+      const result = statsMap.flatMap(
+        (v, i) => statsMap.slice(i + 1).map((w) => [v, w])
+      );
+
+      setGameCombinations(shuffleArray(result));
+
+      setFirstWord(result[idxTracker.current][0]);
+      setSecondWord(result[idxTracker.current][1]);
+
+      idxTracker.current += 1;
     }
   };
 
@@ -107,22 +112,48 @@ const Home = () => {
 
   useEffect(() => {
     if (wordCount >= 1) {
-      refreshWords(generateTwoRandomNumbers());
+      const firstNumber = Math.floor(Math.random() * wordCount);
+      const secondNumber = Math.floor(Math.random() * wordCount);
+
+      refreshWords({firstNumber, secondNumber});
     }
-  }, [wordCount, generateTwoRandomNumbers]);
+  }, [wordCount]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>Ilusaim eestikeelne sõna</div>
-      <p>Kumb eestikeelne sõna on sinu arvates ilusam?</p>
-      {!isLoading && (
-        <div className={styles.wordscontainer}>
-          <button className={styles.button} onClick={handleWordClick}>{firstWord}</button>
-          <button className={styles.button} onClick={handleWordClick}>{secondWord}</button>
+    <div className="min-h-screen flex flex-col justify-center items-center font-sans">
+      <div className="text-3xl font-bold mb-8">Ilusaim eestikeelne sõna 🇪🇪</div>
+      {(!isLoading && !gameEnded) && (<>
+        <p>Kumb eestikeelne sõna on sinu arvates ilusam?</p>
+        <div className="mt-8 flex gap-8">
+          <button
+            className="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded"
+            onClick={handleWordClick}
+          >
+            {firstWord}
+          </button>
+          <button
+            className="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded"
+            onClick={handleWordClick}
+          >
+            {secondWord}
+          </button>
         </div>
+      </>
       )}
       {gameEnded && (
-        <div>{Object.entries(stats).map(([k, v]) => <li key={k}>{k}: {v}</li>)}</div>
+        <table className="table-auto w-1/2">
+          <thead>
+            <tr>
+              <th>Sõna</th>
+              <th>Skoor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortStats(stats).map(({word, score}) => (
+              <ScoreRow key={word} score={score} word={word} />
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
